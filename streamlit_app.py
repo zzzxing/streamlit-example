@@ -1,38 +1,46 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
-import streamlit as st
+# Interactive Streamlit elements, like these sliders, return their value.
+# This gives you an extremely simple interaction model.
+iterations = st.sidebar.slider("Level of detail", 2, 20, 10, 1)
+separation = st.sidebar.slider("Separation", 0.7, 2.0, 0.7885)
 
-"""
-# Welcome to Streamlit!
+# Non-interactive elements return a placeholder to their location
+# in the app. Here we're storing progress_bar to update it later.
+progress_bar = st.sidebar.progress(0)
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+# These two elements will be filled in later, so we create a placeholder
+# for them using st.empty()
+frame_text = st.sidebar.empty()
+image = st.empty()
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+m, n, s = 960, 640, 400
+x = np.linspace(-m / s, m / s, num=m).reshape((1, m))
+y = np.linspace(-n / s, n / s, num=n).reshape((n, 1))
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+for frame_num, a in enumerate(np.linspace(0.0, 4 * np.pi, 100)):
+    # Here were setting value for these two elements.
+    progress_bar.progress(frame_num)
+    frame_text.text("Frame %i/100" % (frame_num + 1))
 
+    # Performing some fractal wizardry.
+    c = separation * np.exp(1j * a)
+    Z = np.tile(x, (n, 1)) + 1j * np.tile(y, (1, m))
+    C = np.full((n, m), c)
+    M: Any = np.full((n, m), True, dtype=bool)
+    N = np.zeros((n, m))
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+    for i in range(iterations):
+        Z[M] = Z[M] * Z[M] + C[M]
+        M[np.abs(Z) > 2] = False
+        N[M] = i
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+    # Update the image placeholder by calling the image() function on it.
+    image.image(1.0 - (N / N.max()), use_column_width=True)
 
-    points_per_turn = total_points / num_turns
+# We clear elements by calling empty on them.
+progress_bar.empty()
+frame_text.empty()
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
-
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+# Streamlit widgets automatically run the script from top to bottom. Since
+# this button is not connected to any other logic, it just causes a plain
+# rerun.
+st.button("Re-run")
